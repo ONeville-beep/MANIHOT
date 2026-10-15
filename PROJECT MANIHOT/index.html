@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANIHOT - Sistem Pemantauan Komposit Fototermal Berbasis IoT</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/images/logo-manihot.svg">
+  <link rel="stylesheet" href="./css/base.css">
+</head>
+<body>
+  <header class="top-navbar">
+    <div class="brand-group">
+      <img src="./assets/images/logo-manihot.svg" alt="Logo MANIHOT" class="brand-logo">
+      <div>
+        <div class="brand-title">MANIHOT IoT Telemetry</div>
+        <span class="brand-subtitle">Pemanfaatan Hydrochar Kulit Singkong &amp; PCM untuk Perban Terapi Pasif</span>
+      </div>
+    </div>
+    <nav class="nav-actions">
+      <a href="./patient.html" class="btn btn-secondary btn-sm">Patient Interface</a>
+      <a href="./admin.html" class="btn btn-primary btn-sm">Admin Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="portal-container">
+    <section class="portal-hero">
+      <span class="portal-tag">Prototipe Penelitian Ilmiah</span>
+      <h1>MANIHOT: Pemanfaatan Hydrochar Kulit Singkong sebagai Komposit Penyimpan dan Penyalur Panas Pasif untuk Perban Terapi Nyeri Sendi Berbasis IoT</h1>
+      <p>
+        Aplikasi web ini berfungsi sebagai instrumen pemantauan dan evaluasi performa termal prototipe komposit
+        <strong>Hydrochar Kulit Singkong</strong> (penyerap fototermal), <strong>Perca Katun Majalaya</strong> (matriks penyangga),
+        dan <strong>Phase Change Material (PCM) berbasis asam lemak nabati</strong> dengan rentang perubahan fase rancangan
+        <strong>38.0&ndash;41.0 &deg;C</strong> yang diukur menggunakan mikrokontroler <strong>ESP32</strong>, dua sensor suhu presisi
+        <strong>TMP117</strong>, serta sensor iluminansi <strong>BH1750</strong>.
+      </p>
+      <div class="alert-box alert-warn" style="margin-bottom: 0;">
+        <div>
+          <div class="alert-title">Penafian Ilmiah &amp; Keselamatan (Bukan Perangkat Diagnosis Medis)</div>
+          <div class="alert-desc">
+            Aplikasi ini merupakan perangkat lunak pemantauan prototipe skala laboratorium dan <strong>bukan alat medis tervalidasi klinis</strong>.
+            Rentang suhu 38.0&ndash;41.0 &deg;C adalah parameter rancangan penelitian, bukan jaminan keamanan termal bagi setiap kondisi kulit pengguna.
+            Pemilihan antarmuka di bawah ini ditujukan untuk pemisahan fungsi tampilan pada prototipe (bukan sistem autentikasi keamanan jaringan).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="role-grid">
+      <article class="role-card">
+        <div>
+          <h2>1. Patient Interface (Tampilan Pengguna)</h2>
+          <p>
+            Antarmuka sederhana yang dirancang agar mudah dipahami oleh subjek uji atau pengguna tanpa menampilkan kerumitan teknis.
+          </p>
+          <ul class="role-feature-list">
+            <li>Angka suhu antarmuka kulit berukuran besar (&deg;C)</li>
+            <li>Status suhu terhadap rentang rancangan dalam bahasa sederhana</li>
+            <li>Indikator koneksi perangkat dan deteksi otomatis data kedaluwarsa</li>
+            <li>Peringatan keselamatan langsung apabila suhu melebihi 41.0 &deg;C</li>
+            <li>Kontrol mulai/akhiri sesi pemantauan pasif</li>
+          </ul>
+        </div>
+        <a href="./patient.html" class="btn btn-primary btn-lg">Buka Patient Interface</a>
+      </article>
+
+      <article class="role-card">
+        <div>
+          <h2>2. Admin Dashboard (Tampilan Peneliti)</h2>
+          <p>
+            Antarmuka teknis lengkap bagi tim peneliti untuk mengevaluasi data sensor mentah, kurva respons termal, dan log sistem.
+          </p>
+          <ul class="role-feature-list">
+            <li>Koneksi Web Bluetooth API (BLE GATT) ke ESP32 &amp; simulator skenario DEMO</li>
+            <li>9 kartu telemetri: T_material, T_kulit, &Delta;T, dT/dt aktual, dan iluminansi (lux)</li>
+            <li>4 grafik real-time Chart.js dengan pembatasan titik memori</li>
+            <li>Panel evaluasi matematis, statistik sesi, dan keterbatasan model fluks kalor</li>
+            <li>Tabel data mentah, ekspor CSV murni, log peristiwa, dan konfigurasi ambang</li>
+          </ul>
+        </div>
+        <a href="./admin.html" class="btn btn-secondary btn-lg">Buka Admin Dashboard</a>
+      </article>
+    </section>
+  </main>
+
+  <footer class="disclaimer-bar">
+    Proyek Penelitian MANIHOT &bull; Komposit Fototermal Hydrochar Kulit Singkong, Katun Majalaya &amp; PCM Nabati &bull; Sinkronisasi Lokal via BroadcastChannel &amp; localStorage
+  </footer>
+</body>
+</html>
