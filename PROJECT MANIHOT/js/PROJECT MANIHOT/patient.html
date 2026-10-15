@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Interface - MANIHOT Pemantauan Suhu Perban</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/images/logo-manihot.svg">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/patient.css">
+</head>
+<body>
+  <div id="patientDemoBanner" class="mode-banner hidden">
+    <span>MODE DEMO / SIMULASI AKTIF: Data suhu yang ditampilkan adalah simulasi pengujian, bukan pembacaan sensor fisik.</span>
+  </div>
+
+  <header class="top-navbar">
+    <div class="brand-group">
+      <img src="./assets/images/logo-manihot.svg" alt="Logo MANIHOT" class="brand-logo">
+      <div>
+        <div class="brand-title">MANIHOT</div>
+        <span class="brand-subtitle">Pemantauan Suhu Perban Pasif (Tampilan Pengguna)</span>
+      </div>
+    </div>
+    <nav class="nav-actions">
+      <a href="./index.html" class="btn btn-secondary btn-sm">Halaman Utama</a>
+      <a href="./admin.html" class="btn btn-secondary btn-sm">Beralih ke Admin Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="patient-main">
+    <!-- Kotak Peringatan Keselamatan / Sensor -->
+    <section id="patientSafetyAlert" class="alert-box hidden" role="alert">
+      <div>
+        <div id="patientSafetyAlertTitle" class="alert-title">Peringatan Sistem</div>
+        <div id="patientSafetyAlertDesc" class="alert-desc"></div>
+      </div>
+    </section>
+
+    <!-- Kartu Utama Suhu Antarmuka Kulit -->
+    <section id="patientTempCard" class="patient-temp-card state-unavailable" aria-live="polite">
+      <div class="temp-label-top">Suhu Antarmuka Kulit Saat Ini</div>
+      <div class="temp-primary-display">
+        <span id="patientSkinTempValue" class="temp-number">--.-</span>
+        <span class="temp-unit">&deg;C</span>
+      </div>
+      <div>
+        <span id="patientSkinStatusBadge" class="temp-status-pill badge-neutral">Data sensor tidak tersedia</span>
+      </div>
+      <p id="patientSkinGuidanceText" class="temp-guidance-text">
+        Menunggu data dari perangkat pemantauan MANIHOT. Tekan tombol Mulai Sesi Pemantauan untuk memulai.
+      </p>
+      <div class="design-range-reference">
+        <span>Rentang Rancangan Penelitian: <strong id="patientDesignRangeLabel">38.0 &ndash; 41.0 &deg;C</strong></span>
+        <span>Pemanasan: <strong>Pasif (Fototermal &amp; PCM)</strong></span>
+      </div>
+    </section>
+
+    <!-- Ringkasan Status Koneksi, Waktu Pembaruan, dan Sesi -->
+    <section class="patient-info-grid">
+      <div class="patient-meta-item">
+        <div class="meta-label">Status Perangkat</div>
+        <div id="patientConnectionStatus" class="meta-value">Menunggu Data</div>
+      </div>
+      <div class="patient-meta-item">
+        <div class="meta-label">Pembaruan Terakhir</div>
+        <div id="patientLastUpdate" class="meta-value">Belum ada data</div>
+      </div>
+      <div class="patient-meta-item">
+        <div class="meta-label">Status Sesi</div>
+        <div id="patientSessionStatus" class="meta-value">Sesi Berhenti</div>
+      </div>
+    </section>
+
+    <!-- Panel Informasi Perangkat (Tersembunyi secara default) -->
+    <section id="patientDevicePanel" class="device-modal-panel hidden">
+      <strong>Informasi Status Perangkat Pemantauan</strong>
+      <div class="device-detail-list">
+        <div>
+          <div class="meta-label">Sumber Data</div>
+          <div id="patientDevSourceMode">Belum Aktif</div>
+        </div>
+        <div>
+          <div class="meta-label">Identitas Perangkat</div>
+          <div id="patientDevName">Tidak ada perangkat terhubung</div>
+        </div>
+        <div>
+          <div class="meta-label">Usia Data Terakhir</div>
+          <div id="patientDevSampleAge">N/A</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kontrol Sesi Pemantauan -->
+    <section class="patient-controls-card">
+      <div class="card-title">Kontrol Sesi Pemantauan</div>
+      <div class="control-buttons-row">
+        <button id="btnPatientStartSession" type="button" class="btn btn-primary btn-lg">
+          Mulai Sesi Pemantauan
+        </button>
+        <button id="btnPatientStopSession" type="button" class="btn btn-danger btn-lg" disabled>
+          Akhiri Sesi Pemantauan
+        </button>
+        <button id="btnPatientToggleDevice" type="button" class="btn btn-secondary">
+          Lihat Status Perangkat
+        </button>
+      </div>
+      <p class="passive-notice">
+        <strong>Catatan Sistem Pasif:</strong> Perban MANIHOT bekerja secara pasif menyerap cahaya dan menyimpan panas melalui matriks
+        Hydrochar &amp; PCM tanpa elemen pemanas listrik aktif. Aplikasi ini memantau suhu dan memberikan peringatan keselamatan,
+        bukan mengatur daya pemanas.
+      </p>
+    </section>
+  </main>
+
+  <footer class="disclaimer-bar">
+    Prototipe Penelitian MANIHOT &bull; Bukan Perangkat Diagnosis Medis &bull; Jika terasa tidak nyaman atau muncul peringatan suhu, segera lepaskan perban dan hubungi peneliti.
+  </footer>
+
+  <script type="module" src="./js/patient.js"></script>
+</body>
+</html>
