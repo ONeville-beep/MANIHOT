@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>MANIHOT Health — Smart Photothermal Bandage | EUREKA! ITB 2026</title>
+  <meta name="description" content="Aplikasi Pendamping Pintar Pemantauan Perban Fototermal Pasif Berbasis Hydrochar Kulit Singkong & Phase Change Material (PCM)." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Chart.js & Lucide Icons CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body data-role="PATIENT" class="min-h-screen flex flex-col pb-24 md:pb-12 selection:bg-emerald-500 selection:text-white">
+
+  <!-- CRITICAL THERMAL ALERT BANNER (T_skin >= 44.0°C) -->
+  <div id="critical-thermal-banner" role="alert" aria-live="assertive" class="hidden sticky top-0 z-50 bg-red-600 text-white px-3.5 py-3 shadow-xl">
+    <div class="app-shell mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="p-2 bg-white/20 rounded-2xl shrink-0">
+          <i data-lucide="flame" class="w-5 h-5 text-white"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="font-extrabold text-sm sm:text-base truncate">
+            PERINGATAN: SUHU TINGGI (<span id="banner-critical-temp" class="font-mono">--</span>°C)
+          </p>
+          <p class="text-xs text-red-100 leading-snug">
+            Hentikan pengujian dan lepaskan manset dengan hati-hati. Dinginkan kulit dengan air sejuk mengalir.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 w-full sm:w-auto shrink-0">
+        <button onclick="App.openHelpModal('thermal')" class="touch-target flex-1 sm:flex-initial px-3.5 py-1.5 bg-white text-red-700 font-bold text-xs rounded-xl shadow">
+          Pertolongan Pertama
+        </button>
+        <button onclick="App.Session.pauseSession()" class="touch-target flex-1 sm:flex-initial px-3.5 py-1.5 bg-red-900 text-white font-semibold text-xs rounded-xl">
+          Jeda Sesi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-b border-slate-200/70 dark:border-slate-800/80">
+    <div class="app-shell mx-auto px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2">
+      
+      <!-- Brand & Active Status (5x tap on icon triggers hidden Admin login) -->
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div id="header-brand-icon" onclick="App.StealthAdmin.handleSecretLogoTap()" class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0 cursor-pointer select-none" title="MANIHOT Health">
+          <img src="assets/logo.svg" alt="MANIHOT" class="w-6 h-6" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+          <i data-lucide="heart-pulse" class="w-5 h-5 hidden"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-white leading-none">MANIHOT</h1>
+            <span id="header-role-badge" class="admin-only inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/90 dark:text-indigo-300">
+              🔬 ADMIN
+            </span>
+            <span id="header-source-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+              <span id="header-pulse-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500 pulse-dot"></span>
+              <span id="header-source-text">DEMO DATA</span>
+            </span>
+          </div>
+          <p id="header-subtitle-text" class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 hidden sm:block">
+            Pendamping Terapi Hangat Mandiri • <span id="header-db-text">Nyaman &amp; Aman</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Right Quick Actions (Compact on Mobile so it never overflows) -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Active Patient Profile Button -->
+        <button onclick="App.openRoleModal()" class="touch-target flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition border border-slate-200/80 dark:border-slate-700" title="Profil Pasien">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0"></i>
+          <span id="header-active-user" class="max-w-[82px] sm:max-w-[140px] truncate">Nama Pasien</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 opacity-60 shrink-0"></i>
+        </button>
+
+        <!-- Settings Icon Button (Admin Only) -->
+        <button onclick="App.navigateTo('settings')" aria-label="Pengaturan Teknis" class="admin-only touch-target p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Pengaturan Sistem & UUID BLE">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle-btn" onclick="App.toggleTheme()" aria-label="Ganti Tema" class="touch-target p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Mode Terang / Gelap">
+          <i id="theme-icon-sun" data-lucide="sun" class="w-4 h-4 hidden text-amber-400"></i>
+          <i id="theme-icon-moon" data-lucide="moon" class="w-4 h-4 text-slate-700"></i>
+        </button>
+
+        <!-- Emergency / Guide Button -->
+        <button id="btn-please-help" onclick="App.openHelpModal('thermal')" class="touch-target flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-sm shadow-rose-500/20 transition">
+          <i data-lucide="life-buoy" class="w-3.5 h-3.5 shrink-0"></i>
+          <span class="hidden md:inline">Please Help Me!</span>
+          <span class="hidden sm:inline md:hidden">Bantuan</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Admin-Only Session Bar -->
+    <div class="admin-only bg-indigo-950 text-indigo-100 border-t border-indigo-800/60 px-3.5 py-1.5">
+      <div class="app-shell mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+          <span class="font-bold">Konsol Admin &amp; Peneliti Terbuka</span>
+          <span class="text-indigo-300 hidden sm:inline">• Rumus fisika, simulator sensor, dan kohort pasien aktif</span>
+        </div>
+        <button onclick="App.StealthAdmin.lockAdminMode()" class="px-2.5 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-extrabold transition flex items-center gap-1 shadow-sm">
+          <span>🔒 Kembali ke Mode Pasien</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Desktop Pill Navigation Bar -->
+    <div class="hidden md:block border-t border-slate-100 dark:border-slate-800/60">
+      <div class="app-shell mx-auto px-5 py-2 flex items-center justify-between">
+        <nav aria-label="Navigasi Utama" class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="App.navigateTo('overview')" data-nav="overview" class="nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="gauge" class="w-4 h-4"></i>
+            <span>Beranda</span>
+          </button>
+          <button onclick="App.navigateTo('monitoring')" data-nav="monitoring" class="nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span class="patient-only">Grafik Suhu</span>
+            <span class="admin-only">Grafik &amp; Lab Sains</span>
+          </button>
+          <button onclick="App.navigateTo('impact')" data-nav="impact" class="nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="smile-plus" class="w-4 h-4"></i>
+            <span class="patient-only">Kondisi Saya</span>
+            <span class="admin-only">Evaluasi Gejala</span>
+          </button>
+          <button onclick="App.navigateTo('history')" data-nav="history" class="nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="clock" class="w-4 h-4"></i>
+            <span>Riwayat Sesi</span>
+          </button>
+          <button onclick="App.navigateTo('profile')" data-nav="profile" class="admin-only nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Data Pasien &amp; Kohort</span>
+          </button>
+          <button onclick="App.navigateTo('faq')" data-nav="faq" class="nav-btn px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            <span class="patient-only">Panduan</span>
+            <span class="admin-only">Edukasi Sains</span>
+          </button>
+        </nav>
+
+        <button onclick="App.Walkthrough.start()" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 shrink-0">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Tur Singkat
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER (Mobile Ratio Snug, Laptop Bento Grid) -->
+  <main class="flex-1 app-shell w-full mx-auto px-3.5 sm:px-5 pt-4 sm:pt-5 space-y-4 sm:space-y-5">
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1: BERANDA (SMARTWATCH REFERENCE POSITIONING)                    -->
+    <!-- ===================================================================== -->
+    <section id="view-overview" class="app-view space-y-4 sm:space-y-5">
+
+      <!-- TOP ROW: Greeting Banner + Connection Pill -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+        
+        <!-- Patient Greeting & Daily Therapy Goal (7 cols on Laptop) -->
+        <div class="patient-only lg:col-span-7 health-card p-4 sm:p-5 bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/15 flex flex-col justify-between gap-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="space-y-1 min-w-0">
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] sm:text-[11px] font-extrabold">
+                <span>🌿 Pendamping Terapi Nyaman</span>
+              </div>
+              <h2 class="text-base sm:text-xl font-extrabold truncate">
+                Halo, <span id="patient-greeting-name">Nama Pasien</span> 👋
+              </h2>
+              <p class="text-xs text-emerald-50 leading-relaxed">
+                Target terapi hangat hari ini: <strong><span id="patient-target-mins">15</span> menit</strong> pada zona nyaman (38–41°C).
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-white/15 backdrop-blur-sm p-3 rounded-2xl space-y-1.5">
+            <div class="flex justify-between text-xs font-bold">
+              <span>Progres Terapi Sesi Ini</span>
+              <span id="patient-goal-pct" class="font-mono">0%</span>
+            </div>
+            <div class="w-full h-2 bg-white/25 rounded-full overflow-hidden">
+              <div id="patient-goal-bar" class="h-full bg-white rounded-full transition-all duration-300" style="width: 5%;"></div>
+            </div>
+            <div id="patient-goal-status" class="text-[11px] text-emerald-100">
+              Pertahankan lingkaran suhu tetap hijau.
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Telemetry Banner (7 cols on Laptop when Admin Mode active) -->
+        <div class="admin-only lg:col-span-7 health-card p-4 sm:p-5 border-l-4 border-l-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30 flex flex-col justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+              <i data-lucide="flask-conical" class="w-5 h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Mode Admin &amp; Peneliti Aktif</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/70 text-indigo-800 dark:text-indigo-200">Akses Penuh</span>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                Kalkulator termodinamika PCM, neraca energi tunak, diagnostik paket BLE, dan manajemen kohort pasien telah dibuka.
+              </p>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="App.navigateTo('monitoring')" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition">
+              Buka Kalkulator Fisika
+            </button>
+            <button onclick="App.navigateTo('profile')" class="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold transition">
+              Kohort Pasien
+            </button>
+          </div>
+        </div>
+
+        <!-- Device Connection Card (5 cols on Laptop) -->
+        <div id="walkthrough-step-connection" class="lg:col-span-5 health-card p-4 sm:p-5 flex flex-col justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+              <i data-lucide="bluetooth" class="w-5 h-5"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center justify-between gap-1">
+                <span id="overview-ble-status-pill" class="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-slate-100">
+                  Mode Simulasi Aktif
+                </span>
+                <span class="text-[11px] font-mono text-slate-400">Update: <span id="overview-last-packet-time">baru saja</span></span>
+              </div>
+              <p id="overview-mode-description" class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                <span class="patient-only">Perban pintar siap memantau kehangatan kulit Anda secara otomatis.</span>
+                <span class="admin-only">Menampilkan simulasi sensor (DEMO DATA). Hubungkan ESP32 via GATT jika tersedia.</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 w-full pt-1">
+            <button id="btn-toggle-sim" onclick="App.Simulation.toggleMode()" class="admin-only touch-target flex-1 px-3 py-2 rounded-xl text-xs font-bold bg-amber-100/80 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 transition">
+              <span id="btn-toggle-sim-text">Simulasi: ON</span>
+            </button>
+            <button id="btn-connect-ble" onclick="App.BLE.handleConnectClick()" class="touch-target flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center justify-center gap-1.5">
+              <i data-lucide="bluetooth" class="w-4 h-4 shrink-0"></i>
+              <span id="btn-connect-ble-text">Hubungkan Perban</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CENTER HERO BENTO: SMARTWATCH GAUGE (LEFT) + METRICS & SESSION PLAYER (RIGHT) -->
+      <div id="walkthrough-step-thermal-hero" class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-stretch">
+        
+        <!-- LEFT 7 COLS: Smartwatch Circular Gauge Card -->
+        <div class="lg:col-span-7 health-card p-4 sm:p-6 flex flex-col justify-between">
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <span class="patient-only">Kenyamanan Suhu Kulit</span>
+              <span class="admin-only">Telemetri T_skin &amp; Status Operasional</span>
+            </span>
+            <div class="flex items-center gap-1.5">
+              <span id="hero-data-label" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                DEMO DATA
+              </span>
+              <span id="hero-quality-badge" class="admin-only px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                VALID
+              </span>
+            </div>
+          </div>
+
+          <!-- Center Circular Ring -->
+          <div class="flex flex-col items-center justify-center my-1">
+            <div class="gauge-ring-wrapper relative flex items-center justify-center">
+              <svg class="w-full h-full" viewBox="0 0 220 220">
+                <circle cx="110" cy="110" r="92" fill="none" stroke="currentColor" stroke-width="16" class="text-slate-100 dark:text-slate-800" />
+                <circle id="smartwatch-ring-circle" cx="110" cy="110" r="92" fill="none" stroke="#10b981" stroke-width="16" stroke-linecap="round" stroke-dasharray="578" stroke-dashoffset="180" class="ring-progress" />
+              </svg>
+
+              <!-- Center Readout -->
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-3">
+                <span class="patient-only text-[11px] font-bold text-slate-400 dark:text-slate-500">Suhu Kulit</span>
+                <span class="admin-only text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">T_skin (TMP117 #1)</span>
+                <div class="flex items-baseline justify-center my-0.5">
+                  <span id="metric-tskin" class="font-mono text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    39.4
+                  </span>
+                  <span class="font-mono text-lg font-bold text-slate-400 ml-0.5">°C</span>
+                </div>
+                <span id="zone-pill-badge" class="mt-1 px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  Hangat Nyaman
+                </span>
+                <span id="metric-dtskin" class="admin-only text-[10px] font-mono text-slate-400 mt-1">
+                  Stabil
+                </span>
+              </div>
+            </div>
+
+            <!-- Horizontal Scale Bar (Positioned right under ring like reference) -->
+            <div class="w-full max-w-md mt-3 px-1">
+              <div class="flex justify-between text-[10px] sm:text-[11px] font-semibold text-slate-400 mb-1">
+                <span>Dingin (&lt;38°)</span>
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold">Nyaman (38–41°)</span>
+                <span class="text-amber-500">Panas (&gt;41°)</span>
+                <span class="text-red-500">Lepas (≥44°)</span>
+              </div>
+              <div class="relative h-2.5 w-full rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800">
+                <div class="w-[35%] bg-sky-400 h-full"></div>
+                <div class="w-[30%] bg-emerald-500 h-full"></div>
+                <div class="w-[20%] bg-amber-500 h-full"></div>
+                <div class="w-[15%] bg-red-500 h-full"></div>
+                <div id="thermal-scale-needle" class="absolute top-0 bottom-0 w-2 bg-slate-900 dark:bg-white rounded-full ring-2 ring-white dark:ring-slate-900 transition-all duration-300" style="left: 50%;"></div>
+              </div>
+              <div class="hidden" id="scale-pointer-label">39.4°C</div>
+            </div>
+
+            <!-- Zone Status Alert Box -->
+            <div id="zone-status-box" class="mt-3 w-full max-w-md p-3 rounded-2xl border flex items-center gap-2.5 bg-emerald-50/70 border-emerald-200 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-800/70 dark:text-emerald-100">
+              <i id="zone-status-icon" data-lucide="check-circle-2" class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+              <div class="text-xs min-w-0">
+                <div id="zone-status-title" class="font-bold text-xs sm:text-sm truncate">Rentang Ideal (38.0–41.0°C)</div>
+                <div id="zone-status-desc" class="opacity-85 text-[11px] leading-snug">Suhu perban berada pada zona hangat operasional prototipe.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT 5 COLS: Sub-Metrics Grid + Active Workout/Session Player -->
+        <div class="lg:col-span-5 flex flex-col justify-between gap-3.5">
+          
+          <!-- 2-Column Compact Metric Cards on Mobile & Laptop for T_material and Lux -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Sub-Metric 1: Suhu Lapisan Perban (T_material) -->
+            <div class="health-card p-3.5 sm:p-4 flex flex-col justify-between min-w-0">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="layers" class="w-4 h-4"></i>
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Perban</span>
+              </div>
+              <div>
+                <div class="flex items-baseline gap-0.5">
+                  <span id="metric-tmaterial" class="font-mono text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">42.1</span>
+                  <span class="text-xs font-bold text-slate-400">°C</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  <span class="patient-only">Kehangatan Kain</span>
+                  <span class="admin-only">T_mat (ΔT: <span id="metric-deltat" class="font-mono font-bold text-emerald-600 dark:text-emerald-400">+2.7°C</span>)</span>
+                </div>
+                <div id="metric-dtmaterial" class="hidden">--</div>
+                <div id="metric-deltat-desc" class="hidden">--</div>
+              </div>
+            </div>
+
+            <!-- Sub-Metric 2: Cahaya Sekitar (BH1750 Lux) -->
+            <div class="health-card p-3.5 sm:p-4 flex flex-col justify-between min-w-0">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <div class="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="sun" class="w-4 h-4"></i>
+                </div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cahaya</span>
+              </div>
+              <div>
+                <div class="flex items-baseline gap-1">
+                  <span id="metric-lux" class="font-mono text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white truncate">18,500</span>
+                  <span class="text-xs font-bold text-slate-400">lx</span>
+                </div>
+                <div id="metric-lux-category" class="text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate mt-0.5">
+                  Cahaya Terang
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-Metric 3: Status Penyangga Panas PCM (Full width of right column) -->
+          <div class="health-card p-3.5 sm:p-4 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-2xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <span class="patient-only">Pelindung Panas Otomatis (PCM)</span>
+                  <span class="admin-only">Estimasi Fase Penyangga PCM</span>
+                </div>
+                <div id="metric-pcm-phase" class="text-xs sm:text-sm font-extrabold text-teal-700 dark:text-teal-300 truncate">
+                  Menyerap Kalor Laten (Aktif)
+                </div>
+                <div id="metric-pcm-range-label" class="admin-only text-[10px] font-mono text-slate-400">
+                  Titik lebur: 41.0–44.5°C
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Smartwatch Workout-Style Session Timer & Controls -->
+          <div id="walkthrough-step-session" class="health-card p-4 sm:p-5 bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/20 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-wider font-bold text-emerald-100 flex items-center gap-1.5">
+                  <span>Lama Pemakaian</span>
+                  <span>•</span>
+                  <span id="sidebar-session-badge" class="px-2 py-0.5 rounded-full bg-white/20 text-[10px]">AKTIF</span>
+                  <span id="overview-session-state" class="hidden">AKTIF</span>
+                </div>
+                <div id="sidebar-session-timer" class="font-mono text-2xl sm:text-3xl font-extrabold tracking-wider mt-0.5">00:00:00</div>
+                <div id="overview-duration" class="hidden">00:00:00</div>
+              </div>
+              <div class="admin-only text-right font-mono text-xs text-emerald-100">
+                <div>Sampel Valid</div>
+                <div class="text-lg font-extrabold text-white">
+                  <span id="sidebar-packet-count">0</span>
+                  <span class="hidden"><span id="overview-pkt-valid">0</span>/<span id="overview-pkt-total">0</span></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button id="btn-sidebar-start-pause" onclick="App.Session.toggleStartPause()" class="touch-target px-3 py-2 rounded-xl bg-white text-emerald-800 font-extrabold text-xs flex items-center justify-center gap-1 shadow-sm hover:bg-emerald-50 transition">
+                <i data-lucide="pause" class="w-3.5 h-3.5 shrink-0"></i>
+                <span id="btn-sidebar-start-pause-text">Jeda</span>
+              </button>
+              <button onclick="App.Session.endAndSaveSession()" class="touch-target px-3 py-2 rounded-xl bg-emerald-800/80 hover:bg-emerald-900 text-white font-bold text-xs flex items-center justify-center gap-1 transition">
+                <i data-lucide="check" class="w-3.5 h-3.5 shrink-0"></i>
+                <span>Simpan</span>
+              </button>
+              <button onclick="App.Export.downloadCurrentCSV()" class="admin-only col-span-2 sm:col-span-1 touch-target px-3 py-2 rounded-xl bg-emerald-800/80 hover:bg-emerald-900 text-white font-bold text-xs flex items-center justify-center gap-1 transition" title="Unduh CSV Penelitian">
+                <i data-lucide="download" class="w-3.5 h-3.5 shrink-0"></i>
+                <span>CSV Riset</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW: WEATHER/THERMAL SCENARIOS & LAST SESSION SUMMARY -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+        
+        <!-- Card 1: Weather/Thermal Scenarios -->
+        <div class="health-card p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="sun-medium" class="w-4 h-4 text-amber-500 shrink-0"></i>
+                <span class="patient-only truncate">Simulasi Cuaca (Coba Tanpa Alat)</span>
+                <span class="admin-only truncate">Uji Skenario Termal Cepat</span>
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Ketuk kondisi cahaya untuk melihat respons suhu perban:
+              </p>
+            </div>
+            <span id="overview-active-scenario" class="text-[10px] sm:text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+              Target Stabil
+            </span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-2 pt-1">
+            <button onclick="App.Simulation.setScenario('warming')" class="touch-target p-2 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-sky-400 text-center transition">
+              <div class="text-base">☁️</div>
+              <div class="text-[11px] font-bold text-slate-800 dark:text-slate-200 mt-0.5">Teduh</div>
+              <div class="text-[10px] text-slate-400">&lt;38°C</div>
+            </button>
+            <button onclick="App.Simulation.setScenario('optimal')" class="touch-target p-2 rounded-2xl border-2 border-emerald-500/60 bg-emerald-50/30 dark:bg-emerald-950/20 text-center transition">
+              <div class="text-base">🌤️</div>
+              <div class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">Ideal</div>
+              <div class="text-[10px] text-slate-400">38–41°C</div>
+            </button>
+            <button onclick="App.Simulation.setScenario('elevated')" class="touch-target p-2 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-400 text-center transition">
+              <div class="text-base">☀️</div>
+              <div class="text-[11px] font-bold text-amber-600 dark:text-amber-400 mt-0.5">Terik</div>
+              <div class="text-[10px] text-slate-400">41–44°C</div>
+            </button>
+            <button onclick="App.Simulation.setScenario('critical')" class="touch-target p-2 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-400 text-center transition">
+              <div class="text-base">🔥</div>
+              <div class="text-[11px] font-bold text-red-600 dark:text-red-400 mt-0.5">Panas</div>
+              <div class="text-[10px] text-slate-400">≥44°C</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 2: Ringkasan Terapi Terakhir -->
+        <div class="health-card p-4 sm:p-5 flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="heart-handshake" class="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0"></i>
+                <span>Ringkasan Terapi Terakhir</span>
+              </h3>
+              <span id="overview-last-session-source" class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">--</span>
+            </div>
+            <div id="overview-last-session-content" class="space-y-1.5 text-xs"></div>
+            <div class="hidden">
+              <span id="overview-sampling-Config">1.0 s</span>
+              <span id="overview-sampling-actual">-- Hz</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button onclick="App.navigateTo('impact')" class="touch-target flex-1 py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="smile-plus" class="w-4 h-4 shrink-0"></i>
+              <span>Catat Kondisi Sendi</span>
+            </button>
+            <button onclick="App.navigateTo('monitoring')" class="touch-target py-2.5 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1 transition">
+              <span>Grafik</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 2: GRAFIK LIVE & LABORATORIUM FISIKA                             -->
+    <!-- ===================================================================== -->
+    <section id="view-monitoring" class="app-view hidden space-y-4 sm:space-y-5">
+
+      <div class="health-card p-4 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                <span class="patient-only">Grafik Kehangatan Perban Anda</span>
+                <span class="admin-only">Grafik Telemetri Multi-Kanal (T_skin, T_material, Lux)</span>
+              </h2>
+              <span id="chart-live-badge" class="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                LIVE
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Rentang ideal berada di antara 38.0°C hingga 41.0°C.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-1.5">
+            <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer">
+              <input type="checkbox" checked onchange="App.Charts.toggleSeries(0, this.checked)" class="rounded text-emerald-600" />
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Suhu Kulit</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer">
+              <input type="checkbox" checked onchange="App.Charts.toggleSeries(1, this.checked)" class="rounded text-amber-500" />
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>Suhu Perban</span>
+            </label>
+            <label class="admin-only inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer">
+              <input type="checkbox" checked onchange="App.Charts.toggleSeries(2, this.checked)" class="rounded text-sky-500" />
+              <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+              <span>Cahaya (lx)</span>
+            </label>
+
+            <select id="chart-window-select" onchange="App.Charts.setMaxPoints(this.value)" aria-label="Rentang Titik" class="admin-only px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+              <option value="20">20 Titik</option>
+              <option value="40" selected>40 Titik</option>
+              <option value="80">80 Titik</option>
+            </select>
+
+            <button id="btn-pause-chart" onclick="App.Charts.toggleChartPause()" class="px-3 py-1.5 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold">
+              <span id="btn-pause-chart-text">Bekukan</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="relative w-full h-[260px] sm:h-[340px]">
+          <canvas id="telemetryMainChart"></canvas>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500">
+          <span>Peringatan Suhu Tinggi Sesi Ini: <strong id="monitoring-warning-count" class="text-slate-800 dark:text-slate-200">0</strong>x</span>
+          <span id="monitoring-last-warning-text" class="font-mono text-[11px]">Kondisi aman terkendali.</span>
+        </div>
+      </div>
+
+      <!-- Patient Friendly Summary Box -->
+      <div class="patient-only health-card p-4 sm:p-5 flex items-center justify-between gap-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <div class="text-xs space-y-0.5">
+            <div class="font-extrabold text-sm text-slate-900 dark:text-white">Pemantauan Suhu Otomatis Aktif</div>
+            <p class="text-slate-600 dark:text-slate-300">Usahakan grafik garis hijau tetap berada di area tengah (38–41°C) untuk kehangatan yang paling nyaman di kulit Anda.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN ONLY: Simulation Sliders Card -->
+      <div class="admin-only health-card p-4 sm:p-6 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4 text-amber-500"></i>
+              <span>Simulator Parameter Lingkungan &amp; Material (Khusus Admin)</span>
+            </h3>
+            <p class="text-xs text-slate-500">Geser untuk menguji respons matematis komposit hydrochar &amp; penyangga laten PCM.</p>
+          </div>
+        </div>
+
+        <div id="sim-sliders-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex justify-between text-xs font-bold mb-1.5">
+              <label for="slider-lux">☀️ Cahaya (Illuminance)</label>
+              <span id="slider-lux-val" class="font-mono text-amber-600 dark:text-amber-400">18,500 lx</span>
+            </div>
+            <input id="slider-lux" type="range" min="200" max="65000" step="200" value="18500" oninput="App.Simulation.updateFromSliders()" class="w-full accent-amber-500 cursor-pointer" />
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex justify-between text-xs font-bold mb-1.5">
+              <label for="slider-ambient">🌡️ Suhu Udara Sekitar (T_∞)</label>
+              <span id="slider-ambient-val" class="font-mono text-emerald-600 dark:text-emerald-400">29.5 °C</span>
+            </div>
+            <input id="slider-ambient" type="range" min="20" max="38" step="0.5" value="29.5" oninput="App.Simulation.updateFromSliders()" class="w-full accent-emerald-600 cursor-pointer" />
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex justify-between text-xs font-bold mb-1.5">
+              <label for="slider-gain">🌿 Efisiensi Serap Hydrochar</label>
+              <span id="slider-gain-val" class="font-mono text-teal-600 dark:text-teal-400">1.00x</span>
+            </div>
+            <input id="slider-gain" type="range" min="0.4" max="1.8" step="0.05" value="1.0" oninput="App.Simulation.updateFromSliders()" class="w-full accent-teal-600 cursor-pointer" />
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+            <div class="flex justify-between text-xs font-bold mb-1.5">
+              <label for="slider-disturbance">⚡ Offset Gangguan Panas</label>
+              <span id="slider-disturbance-val" class="font-mono text-rose-600 dark:text-rose-400">+0.0 °C</span>
+            </div>
+            <input id="slider-disturbance" type="range" min="-3.0" max="8.0" step="0.5" value="0.0" oninput="App.Simulation.updateFromSliders()" class="w-full accent-rose-500 cursor-pointer" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN ONLY: KALKULATOR FISIKA & DIAGNOSTIK PAKET BLE -->
+      <details open class="admin-only health-card group overflow-hidden border-2 border-indigo-500/30">
+        <summary class="cursor-pointer list-none p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 flex items-center justify-center shrink-0">
+              <i data-lucide="flask-conical" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                Laboratorium Fisika &amp; Diagnostik Paket BLE
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Kalkulasi waktu lebur PCM ($t_m$), neraca energi tunak ($\alpha_{\text{eff}}G$), dan validator paket IoT.
+              </p>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold group-open:rotate-180 transition-transform">&#9662;</span>
+        </summary>
+
+        <div class="p-4 sm:p-5 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-4">
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-bold text-xs uppercase tracking-wider text-slate-500">Statistik Transmisi Paket &amp; Sampling</h4>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <select id="monitoring-interval-select" onchange="App.Session.setSamplingInterval(this.value)" class="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold">
+                  <option value="1000" selected>Δt = 1s (1.0 Hz)</option>
+                  <option value="2000">Δt = 2s (0.5 Hz)</option>
+                  <option value="5000">Δt = 5s (0.2 Hz)</option>
+                </select>
+                <button onclick="App.Simulation.injectCorruptPacket()" class="px-2.5 py-1 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-xs font-bold">
+                  Uji Paket Rusak
+                </button>
+                <button onclick="App.Session.confirmResetCounters()" class="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-bold">
+                  Reset Counter
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
+              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900">
+                <div class="text-slate-400">Total Diterima</div>
+                <div id="stat-pkt-total" class="text-base font-extrabold">0</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900">
+                <div class="text-emerald-600">Paket Valid</div>
+                <div id="stat-pkt-valid" class="text-base font-extrabold text-emerald-600">0</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900">
+                <div class="text-amber-600">Paket Rusak</div>
+                <div id="stat-pkt-invalid" class="text-base font-extrabold text-amber-600">0</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-white dark:bg-slate-900">
+                <div class="text-slate-400">Duplikat</div>
+                <div id="stat-pkt-dup" class="text-base font-extrabold">0</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] font-mono text-slate-500 pt-1">
+              <div>Target: <strong id="stat-freq-req">1.00 Hz</strong></div>
+              <div>Aktual: <strong id="stat-freq-actual" class="text-emerald-600">-- Hz</strong></div>
+              <div>RSSI: <strong id="stat-ble-rssi">N/A</strong></div>
+              <div>Baterai: <strong id="stat-ble-battery">N/A</strong></div>
+              <div>Seq: <strong id="stat-last-seq">#--</strong></div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-sm text-slate-900 dark:text-white">1. Estimasi Waktu Lebur PCM</h4>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">t_m ≈ (m·L_f)/P_net</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <label for="calc-pcm-mass" class="block text-slate-500 mb-1">m_PCM (kg)</label>
+                  <input id="calc-pcm-mass" type="number" step="0.001" value="0.025" oninput="App.Physics.runPCMCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+                <div>
+                  <label for="calc-pcm-latent" class="block text-slate-500 mb-1">L_f (J/kg)</label>
+                  <input id="calc-pcm-latent" type="number" step="1000" value="185000" oninput="App.Physics.runPCMCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+                <div>
+                  <label for="calc-pcm-power" class="block text-slate-500 mb-1">P_net (W)</label>
+                  <input id="calc-pcm-power" type="number" step="0.1" value="1.8" oninput="App.Physics.runPCMCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+              </div>
+              <div class="p-3 rounded-xl bg-white dark:bg-slate-900">
+                <div id="calc-pcm-output-main" class="font-mono text-sm font-extrabold text-teal-700 dark:text-teal-300">--</div>
+                <div id="calc-pcm-output-sub" class="text-[11px] text-slate-500 mt-0.5">--</div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-sm text-slate-900 dark:text-white">2. Neraca Energi Tunak</h4>
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">α_eff·G = h(T_s − T_∞)</span>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-xs">
+                <div>
+                  <label for="calc-eb-alpha" class="block text-slate-500 mb-1">α_eff</label>
+                  <input id="calc-eb-alpha" type="number" step="0.01" value="0.88" oninput="App.Physics.runEnergyBalanceCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+                <div>
+                  <label for="calc-eb-g" class="block text-slate-500 mb-1">G (W/m²)</label>
+                  <input id="calc-eb-g" type="number" step="10" value="160" oninput="App.Physics.runEnergyBalanceCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+                <div>
+                  <label for="calc-eb-h" class="block text-slate-500 mb-1">h</label>
+                  <input id="calc-eb-h" type="number" step="0.5" value="12.0" oninput="App.Physics.runEnergyBalanceCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+                <div>
+                  <label for="calc-eb-tinf" class="block text-slate-500 mb-1">T_∞ (°C)</label>
+                  <input id="calc-eb-tinf" type="number" step="0.5" value="29.5" oninput="App.Physics.runEnergyBalanceCalculator()" class="w-full px-2 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+              </div>
+              <div class="p-3 rounded-xl bg-white dark:bg-slate-900">
+                <div id="calc-eb-output-main" class="font-mono text-sm font-extrabold text-amber-600 dark:text-amber-400">--</div>
+                <div id="calc-eb-output-comparison" class="text-[11px] text-slate-500 mt-0.5">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 3: KONDISI SAYA (SYMPTOM & IMPACT TRACKER)                       -->
+    <!-- ===================================================================== -->
+    <section id="view-impact" class="app-view hidden space-y-4 sm:space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+        
+        <div class="lg:col-span-5 health-card p-4 sm:p-6 space-y-4">
+          <div>
+            <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+              😊 Catat Kondisi Sendi Anda
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Geser skala 0 (Tidak Sakit) sampai 10 (Sangat Sakit) sebelum &amp; sesudah memakai perban.
+            </p>
+          </div>
+
+          <form id="impact-form" onsubmit="App.Impact.handleSubmit(event)" class="space-y-3.5 text-xs sm:text-sm">
+            <div>
+              <label for="impact-session-select" class="block text-xs font-bold text-slate-500 mb-1">Sesi Pemakaian</label>
+              <select id="impact-session-select" class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                <option value="current">Sesi Saat Ini (Sedang Berjalan)</option>
+              </select>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-3">
+              <div class="font-bold text-xs uppercase tracking-wider text-slate-500">1. Rasa Nyeri Sendi (0 – 10)</div>
+              <div>
+                <div class="flex justify-between text-xs font-bold mb-1">
+                  <label for="impact-pain-before">Sebelum Pakai</label>
+                  <span id="lbl-pain-before" class="font-mono text-amber-600">6 / 10 😣</span>
+                </div>
+                <input id="impact-pain-before" type="range" min="0" max="10" step="1" value="6" oninput="document.getElementById('lbl-pain-before').textContent = this.value + ' / 10 ' + (this.value<=3?'😊':this.value<=6?'😐':'😣')" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-bold mb-1">
+                  <label for="impact-pain-after">Sesudah Pakai</label>
+                  <span id="lbl-pain-after" class="font-mono text-emerald-600">4 / 10 😐</span>
+                </div>
+                <input id="impact-pain-after" type="range" min="0" max="10" step="1" value="4" oninput="document.getElementById('lbl-pain-after').textContent = this.value + ' / 10 ' + (this.value<=3?'😊':this.value<=6?'😐':'😣')" class="w-full accent-emerald-500 cursor-pointer" />
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-3">
+              <div class="font-bold text-xs uppercase tracking-wider text-slate-500">2. Rasa Kaku Sendi (0 – 10)</div>
+              <div>
+                <div class="flex justify-between text-xs font-bold mb-1">
+                  <label for="impact-stiff-before">Sebelum Pakai</label>
+                  <span id="lbl-stiff-before" class="font-mono text-amber-600">6 / 10</span>
+                </div>
+                <input id="impact-stiff-before" type="range" min="0" max="10" step="1" value="6" oninput="document.getElementById('lbl-stiff-before').textContent = this.value + ' / 10'" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-bold mb-1">
+                  <label for="impact-stiff-after">Sesudah Pakai</label>
+                  <span id="lbl-stiff-after" class="font-mono text-emerald-600">4 / 10</span>
+                </div>
+                <input id="impact-stiff-after" type="range" min="0" max="10" step="1" value="4" oninput="document.getElementById('lbl-stiff-after').textContent = this.value + ' / 10'" class="w-full accent-emerald-500 cursor-pointer" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label for="impact-body-part" class="block text-xs font-semibold text-slate-500 mb-1">Bagian Tubuh</label>
+                <input id="impact-body-part" type="text" placeholder="Mis. Lutut Kanan" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs" />
+              </div>
+              <div>
+                <label for="impact-duration-min" class="block text-xs font-semibold text-slate-500 mb-1">Lama Pakai (Menit)</label>
+                <input id="impact-duration-min" type="number" min="1" max="300" placeholder="Opsional" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono" />
+              </div>
+            </div>
+
+            <div>
+              <label for="impact-comfort" class="block text-xs font-semibold text-slate-500 mb-1">Kenyamanan Hangat</label>
+              <select id="impact-comfort" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                <option value="">-- Pilih Kenyamanan (Opsional) --</option>
+                <option value="Nyaman & Hangat Stabil">😊 Nyaman &amp; Hangat Stabil</option>
+                <option value="Kurang Hangat">😐 Kurang Hangat</option>
+                <option value="Terlalu Panas / Dihentikan">🥵 Terlalu Panas / Dihentikan</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="impact-notes" class="block text-xs font-semibold text-slate-500 mb-1">Catatan Tambahan (Opsional)</label>
+              <input id="impact-notes" type="text" placeholder="Mis. Dipakai sambil duduk pagi..." class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs" />
+            </div>
+
+            <button type="submit" class="touch-target w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition">
+              Simpan Catatan Kondisi
+            </button>
+          </form>
+        </div>
+
+        <div class="lg:col-span-7 space-y-4 sm:space-y-5">
+          <div class="health-card p-4 sm:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-extrabold text-base text-slate-900 dark:text-white">Perkembangan Kondisi Anda</h3>
+                <p class="text-xs text-slate-500">Angka negatif (mis. -2) berarti nyeri/kaku berkurang setelah sesi.</p>
+              </div>
+              <div class="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 p-1">
+                <button onclick="App.Impact.setFilter('7d')" id="filter-btn-7d" class="px-3 py-1 rounded-full text-xs font-bold">7 Hari</button>
+                <button onclick="App.Impact.setFilter('30d')" id="filter-btn-30d" class="px-3 py-1 rounded-full text-xs font-bold">30 Hari</button>
+                <button onclick="App.Impact.setFilter('all')" id="filter-btn-all" class="px-3 py-1 rounded-full text-xs font-bold bg-white dark:bg-slate-900 shadow-sm">Semua</button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+              <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                <div class="text-[11px] text-slate-400">Total Catatan</div>
+                <div id="impact-stat-count" class="font-mono text-xl font-extrabold">0</div>
+              </div>
+              <div class="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30">
+                <div class="text-[11px] text-emerald-700 dark:text-emerald-300">Perubahan Nyeri</div>
+                <div id="impact-stat-dpain" class="font-mono text-xl font-extrabold text-emerald-600 dark:text-emerald-400">--</div>
+              </div>
+              <div class="p-3 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30">
+                <div class="text-[11px] text-teal-700 dark:text-teal-300">Perubahan Kaku</div>
+                <div id="impact-stat-dstiff" class="font-mono text-xl font-extrabold text-teal-600 dark:text-teal-400">--</div>
+              </div>
+              <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                <div class="text-[11px] text-slate-400">Total Waktu</div>
+                <div id="impact-stat-duration" class="font-mono text-xl font-extrabold text-amber-500">0 mnt</div>
+              </div>
+            </div>
+
+            <div id="impact-insufficient-notice" class="hidden p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-800 dark:text-amber-200 text-center">
+              Data belum mencukupi untuk analisis tren (minimal 2 catatan diperlukan).
+            </div>
+
+            <div class="relative w-full h-[220px]">
+              <canvas id="impactTrendChart"></canvas>
+            </div>
+          </div>
+
+          <div class="health-card p-4 sm:p-5 space-y-3">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Riwayat Catatan Kondisi</h3>
+            <div id="impact-records-list" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <details open class="admin-only health-card overflow-hidden border border-indigo-500/30">
+        <summary class="cursor-pointer list-none p-4 sm:p-5 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+          <span>📊 Ringkasan Observasi Penelitian Multi-Pasien (Khusus Admin)</span>
+          <span class="text-xs font-mono text-indigo-600 dark:text-indigo-400">Detail Riset &#9662;</span>
+        </summary>
+        <div class="p-4 sm:p-5 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800">
+              <div class="text-xs text-slate-400">Total Profil</div>
+              <div id="res-total-users" class="font-mono text-lg font-extrabold">0</div>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800">
+              <div class="text-xs text-slate-400">Total Sesi</div>
+              <div id="res-total-sessions" class="font-mono text-lg font-extrabold text-emerald-600">0</div>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800">
+              <div class="text-xs text-slate-400">Total Sampel</div>
+              <div id="res-total-readings" class="font-mono text-lg font-extrabold">0</div>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800">
+              <div class="text-xs text-slate-400">Sampel Valid</div>
+              <div id="res-valid-pct" class="font-mono text-lg font-extrabold text-teal-600">100%</div>
+            </div>
+          </div>
+          <button onclick="App.Export.exportFullResearchDatabaseJSON()" class="px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs font-bold">
+            Ekspor Dataset Penelitian (JSON)
+          </button>
+        </div>
+      </details>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 4: RIWAYAT SESI PEMAKAIAN                                        -->
+    <!-- ===================================================================== -->
+    <section id="view-history" class="app-view hidden space-y-4 sm:space-y-5">
+      <div class="health-card p-4 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+              Riwayat Sesi Terapi • <span id="history-active-user-name" class="text-emerald-600 dark:text-emerald-400">Nama Pasien</span>
+            </h2>
+            <p class="text-xs text-slate-500">Daftar sesi pemakaian perban hangat yang tersimpan di perangkat ini.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="App.Export.exportAllProfileJSON()" class="admin-only px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+              Unduh JSON Profil
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto -mx-2 px-2">
+          <table class="w-full text-left border-collapse text-xs min-w-[520px]">
+            <thead>
+              <tr class="border-b border-slate-100 dark:border-slate-800 text-[11px] uppercase text-slate-400 font-bold">
+                <th class="py-3 px-3">Waktu Mulai</th>
+                <th class="py-3 px-3">Sumber</th>
+                <th class="py-3 px-3">Durasi</th>
+                <th class="py-3 px-3">Rerata Suhu</th>
+                <th class="py-3 px-3">Catatan</th>
+                <th class="py-3 px-3 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="history-replay-panel" class="hidden health-card p-4 sm:p-5 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 id="replay-session-title" class="font-bold text-sm text-slate-900 dark:text-white truncate">Detail Grafik Sesi</h3>
+          <button id="btn-replay-export-csv" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shrink-0">
+            Unduh CSV
+          </button>
+        </div>
+        <div class="relative w-full h-[240px]">
+          <canvas id="historyReplayChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 5: PANDUAN & EDUKASI SAINS MANIHOT                               -->
+    <!-- ===================================================================== -->
+    <section id="view-faq" class="app-view hidden space-y-4 sm:space-y-5">
+      <div class="health-card p-4 sm:p-6 space-y-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+            <span class="patient-only">Panduan Pemakaian &amp; Tanya Jawab</span>
+            <span class="admin-only">Edukasi Sains &amp; Dokumentasi Teknis MANIHOT</span>
+          </h2>
+          <p class="text-xs text-slate-500">
+            Penjelasan cara kerja perban hangat berbahan hydrochar kulit singkong, katun Majalaya, dan pelindung panas PCM.
+          </p>
+        </div>
+
+        <input id="faq-search-input" type="search" oninput="App.FAQ.render()" placeholder="Cari pertanyaan (mis. cara pakai, suhu aman, mencuci perban)..." class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs" />
+
+        <div class="flex flex-wrap gap-1.5">
+          <button onclick="App.FAQ.setCategory('ALL')" data-cat="ALL" class="faq-cat-btn px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-600 text-white">Semua</button>
+          <button onclick="App.FAQ.setCategory('Keselamatan & Data')" data-cat="Keselamatan & Data" class="faq-cat-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">Keselamatan &amp; Cara Pakai</button>
+          <button onclick="App.FAQ.setCategory('Material & HTC')" data-cat="Material & HTC" class="faq-cat-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">Material &amp; Hydrochar</button>
+          <button onclick="App.FAQ.setCategory('Termodinamika & PCM')" data-cat="Termodinamika & PCM" class="faq-cat-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">Pelindung Panas PCM</button>
+          <button onclick="App.FAQ.setCategory('Sensor & Telemetri')" data-cat="Sensor & Telemetri" class="faq-cat-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">Sensor &amp; Alat</button>
+        </div>
+      </div>
+
+      <div id="faq-accordion-container" class="space-y-2.5"></div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 6: PROFIL PENGGUNA & KOHORT PASIEN (ADMIN MANAGEMENT)            -->
+    <!-- ===================================================================== -->
+    <section id="view-profile" class="app-view hidden space-y-4 sm:space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+        <div class="lg:col-span-7 health-card p-4 sm:p-5 space-y-3">
+          <h2 class="text-base font-extrabold text-slate-900 dark:text-white">Daftar Profil Pasien</h2>
+          <p class="text-xs text-slate-500">Kelola profil pasien yang menggunakan perangkat ini.</p>
+          <div id="profile-list-container" class="space-y-2.5 pt-1"></div>
+        </div>
+
+        <div class="lg:col-span-5 space-y-4 sm:space-y-5">
+          <div class="health-card p-4 sm:p-5 space-y-3">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Tambah Profil Pasien Baru</h3>
+            <form onsubmit="App.Users.handleCreateUser(event)" class="space-y-3 text-xs">
+              <div>
+                <label for="new-user-name" class="block font-bold text-slate-500 mb-1">Nama Pasien</label>
+                <input id="new-user-name" type="text" required placeholder="Mis. Nama Pasien" class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label for="new-user-joint" class="block font-bold text-slate-500 mb-1">Area Sendi / Fokus</label>
+                  <input id="new-user-joint" type="text" placeholder="Mis. Lutut Kanan" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+                </div>
+                <div>
+                  <label for="new-user-target" class="block font-bold text-slate-500 mb-1">Target Terapi (Mnt)</label>
+                  <input id="new-user-target" type="number" min="5" max="60" value="15" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono" />
+                </div>
+              </div>
+              <button type="submit" class="touch-target w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition">
+                + Buat &amp; Aktifkan Profil Pasien
+              </button>
+            </form>
+          </div>
+
+          <div class="admin-only health-card p-4 sm:p-5 space-y-2">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Pulihkan Database Riset (Import JSON)</h3>
+            <input id="json-import-input" type="file" accept=".json,application/json" onchange="App.Export.importJSONFile(event)" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700" />
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-only health-card p-4 sm:p-5 space-y-3 border-2 border-indigo-500/20">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+              Tabel Monitoring Kohort Seluruh Pasien
+            </h3>
+            <p class="text-xs text-slate-500">Ringkasan lintas profil untuk membandingkan durasi terapi dan penurunan skor nyeri.</p>
+          </div>
+          <button onclick="App.Export.exportFullResearchDatabaseJSON()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">
+            Unduh JSON Seluruh Kohort
+          </button>
+        </div>
+        <div class="overflow-x-auto -mx-2 px-2">
+          <table class="w-full text-left border-collapse text-xs min-w-[480px]">
+            <thead>
+              <tr class="border-b border-slate-100 dark:border-slate-800 text-[11px] uppercase text-slate-400 font-bold">
+                <th class="py-2.5 px-3">Nama Profil</th>
+                <th class="py-2.5 px-3">Peran</th>
+                <th class="py-2.5 px-3">Fokus / Target</th>
+                <th class="py-2.5 px-3">Total Sesi</th>
+                <th class="py-2.5 px-3">Rerata Δ Nyeri</th>
+                <th class="py-2.5 px-3 text-right">Tindakan</th>
+              </tr>
+            </thead>
+            <tbody id="admin-cohort-table-body" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 7: PENGATURAN SISTEM & KONFIGURASI TEKNIS                        -->
+    <!-- ===================================================================== -->
+    <section id="view-settings" class="app-view hidden space-y-4 sm:space-y-5">
+      <div class="health-card p-4 sm:p-5 space-y-4">
+        <h2 class="text-base font-extrabold text-slate-900 dark:text-white">Pengaturan Cepat Aplikasi</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
+            <div class="font-bold text-slate-500">Tema Layar</div>
+            <button onclick="App.toggleTheme()" class="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-900 font-bold text-left flex justify-between items-center">
+              <span id="settings-theme-label">Terang / Gelap</span>
+              <i data-lucide="sun-moon" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
+            <label for="cfg-sampling-select" class="block font-bold text-slate-500">Interval Sensor</label>
+            <select id="cfg-sampling-select" onchange="App.Session.setSamplingInterval(this.value)" class="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-900 font-mono font-bold">
+              <option value="1000">1 detik (1.0 Hz)</option>
+              <option value="2000">2 detik (0.5 Hz)</option>
+              <option value="5000">5 detik (0.2 Hz)</option>
+            </select>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
+            <div class="font-bold text-slate-500">Sumber Data</div>
+            <button onclick="App.Simulation.toggleMode()" class="w-full py-2 px-3 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 font-bold text-left truncate">
+              <span id="settings-datamode-label">Simulasi (DEMO)</span>
+            </button>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
+            <label for="cfg-device-id" class="block font-bold text-slate-500">ID Perangkat</label>
+            <input id="cfg-device-id" type="text" value="MANIHOT-PROTO-01" onchange="App.Settings.saveDeviceIdentity(this.value)" class="w-full py-2 px-3 rounded-xl bg-white dark:bg-slate-900 font-mono" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+        <div class="health-card p-4 sm:p-5 space-y-3">
+          <h3 class="font-bold text-sm text-slate-900 dark:text-white">Ambang Peringatan Suhu (°C)</h3>
+          <div class="grid grid-cols-2 gap-2.5 text-xs">
+            <div>
+              <label for="cfg-target-min" class="block text-slate-500 mb-1">Target Min (°C)</label>
+              <input id="cfg-target-min" type="number" step="0.5" value="38.0" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono" />
+            </div>
+            <div>
+              <label for="cfg-target-max" class="block text-slate-500 mb-1">Target Max (°C)</label>
+              <input id="cfg-target-max" type="number" step="0.5" value="41.0" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono" />
+            </div>
+            <div>
+              <label for="cfg-critical-min" class="block text-red-500 font-bold mb-1">Batas Kritis (°C)</label>
+              <input id="cfg-critical-min" type="number" step="0.5" value="44.0" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono" />
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-1">Rentang Lebur PCM</label>
+              <div class="flex gap-1">
+                <input id="cfg-pcm-min" type="number" step="0.5" value="41.0" class="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono" />
+                <input id="cfg-pcm-max" type="number" step="0.5" value="44.5" class="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 font-mono" />
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button onclick="App.Settings.saveThresholds()" class="flex-1 py-2.5 rounded-2xl bg-emerald-600 text-white text-xs font-bold">Simpan Ambang</button>
+            <button onclick="App.Settings.resetDefaultThresholds()" class="py-2.5 px-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Default</button>
+          </div>
+        </div>
+
+        <div class="health-card p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-sm text-slate-900 dark:text-white">Konfigurasi Bluetooth ESP32</h3>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300">GATT UUID</span>
+          </div>
+          <div class="space-y-2 text-xs font-mono">
+            <input id="cfg-ble-prefix" type="text" value="MANIHOT" placeholder="Prefix Nama BLE" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800" />
+            <input id="cfg-ble-service" type="text" value="4fafc201-1fb5-459e-8fcc-c5c9c331914b" placeholder="Service UUID" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800" />
+            <input id="cfg-ble-char-tx" type="text" value="beb5483e-36e1-4688-b7f5-ea07361b26a8" placeholder="Telemetry Char UUID" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800" />
+            <input id="cfg-ble-char-rx" type="text" value="82b99a12-43d1-4a9c-9214-7b1f09d5e821" placeholder="Command Char UUID" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800" />
+          </div>
+          <button onclick="App.Settings.saveBLEConfig()" class="w-full py-2.5 rounded-2xl bg-sky-600 text-white text-xs font-bold">Simpan UUID BLE</button>
+        </div>
+      </div>
+
+      <div class="health-card p-4 sm:p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-slate-900 dark:text-white">Database &amp; Diagnostik Sistem</h3>
+          <span id="settings-repo-badge" class="text-[11px] font-mono font-bold text-emerald-600">LOCAL DATABASE (IndexedDB)</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="App.Settings.testCloudAdapter()" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold">Cek Penyimpanan Lokal</button>
+          <button onclick="App.Settings.confirmClearAllLocalData()" class="px-4 py-2 rounded-xl bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 text-xs font-bold">Reset Database ke Awal</button>
+        </div>
+        <div id="ble-diagnostic-log" class="p-3 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[11px] max-h-24 overflow-y-auto">
+          <div>[SYS] MANIHOT Smartwatch Companion UI siap digunakan.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- SMARTPHONE BOTTOM NAVIGATION BAR (5-Tab Smartwatch Companion Bar) -->
+  <nav aria-label="Navigasi Smartphone" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-t border-slate-200/80 dark:border-slate-800 px-2 py-1.5 shadow-lg">
+    <div class="grid grid-cols-5 gap-1 max-w-md mx-auto">
+      <button onclick="App.navigateTo('overview')" data-nav-mobile="overview" class="mobile-nav-btn touch-target flex flex-col items-center justify-center py-1 rounded-2xl text-[10px] font-bold">
+        <i data-lucide="gauge" class="w-5 h-5 mb-0.5"></i>
+        <span>Beranda</span>
+      </button>
+      <button onclick="App.navigateTo('monitoring')" data-nav-mobile="monitoring" class="mobile-nav-btn touch-target flex flex-col items-center justify-center py-1 rounded-2xl text-[10px] font-bold">
+        <i data-lucide="activity" class="w-5 h-5 mb-0.5"></i>
+        <span>Grafik</span>
+      </button>
+      <button onclick="App.navigateTo('impact')" data-nav-mobile="impact" class="mobile-nav-btn touch-target flex flex-col items-center justify-center py-1 rounded-2xl text-[10px] font-bold">
+        <i data-lucide="smile-plus" class="w-5 h-5 mb-0.5"></i>
+        <span>Kondisi</span>
+      </button>
+      <button onclick="App.navigateTo('history')" data-nav-mobile="history" class="mobile-nav-btn touch-target flex flex-col items-center justify-center py-1 rounded-2xl text-[10px] font-bold">
+        <i data-lucide="clock" class="w-5 h-5 mb-0.5"></i>
+        <span>Riwayat</span>
+      </button>
+      <button onclick="App.navigateTo('faq')" data-nav-mobile="faq" class="mobile-nav-btn touch-target flex flex-col items-center justify-center py-1 rounded-2xl text-[10px] font-bold">
+        <i data-lucide="book-open" class="w-5 h-5 mb-0.5"></i>
+        <span>Edukasi</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MODAL 1: PLEASE HELP ME! -->
+  <div id="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full shadow-2xl overflow-hidden my-8">
+      <div class="px-5 py-4 bg-rose-500 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="life-buoy" class="w-6 h-6"></i>
+          <h2 id="help-modal-title" class="text-base sm:text-lg font-extrabold">Panduan Bantuan &amp; Keselamatan</h2>
+        </div>
+        <button onclick="App.closeHelpModal()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="px-5 pt-3 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex gap-2 overflow-x-auto">
+        <button onclick="App.switchHelpTab('thermal')" id="help-tab-btn-thermal" class="help-tab-btn px-3.5 py-2 rounded-t-2xl font-bold text-xs border-b-2 border-rose-500 text-rose-600 shrink-0">
+          1. Jika Terlalu Panas
+        </button>
+        <button onclick="App.switchHelpTab('setup')" id="help-tab-btn-setup" class="help-tab-btn px-3.5 py-2 rounded-t-2xl font-semibold text-xs border-b-2 border-transparent text-slate-500 shrink-0">
+          2. Cara Pakai (3 Langkah)
+        </button>
+        <button onclick="App.switchHelpTab('troubleshoot')" id="help-tab-btn-troubleshoot" class="help-tab-btn px-3.5 py-2 rounded-t-2xl font-semibold text-xs border-b-2 border-transparent text-slate-500 shrink-0">
+          3. Masalah Koneksi
+        </button>
+      </div>
+
+      <div class="p-5 max-h-[65vh] overflow-y-auto space-y-4 text-sm leading-relaxed">
+        <div id="help-tab-thermal" class="space-y-3">
+          <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 space-y-2">
+            <h3 class="font-extrabold text-sm sm:text-base text-rose-700 dark:text-rose-300">Langkah Darurat Saat Perban Terasa Panas:</h3>
+            <ol class="list-decimal list-inside space-y-1.5 text-xs sm:text-sm">
+              <li><strong>Hentikan pemakaian segera</strong> dan pindah ke tempat teduh.</li>
+              <li><strong>Lepaskan perban perlahan</strong> dengan hati-hati.</li>
+              <li><strong>Basuh kulit dengan air sejuk mengalir</strong> selama 10–15 menit. <strong>Jangan tempelkan es batu langsung</strong> ke kulit.</li>
+              <li><strong>Hubungi dokter/klinik</strong> jika kulit melepuh atau nyeri berlanjut.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div id="help-tab-setup" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 space-y-1">
+            <div class="text-base font-extrabold text-emerald-600">Langkah 1</div>
+            <div class="font-bold text-xs">Pasang Nyaman</div>
+            <p class="text-xs text-slate-500">Pasang manset tanpa mengikat terlalu kencang agar aliran darah lancar.</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 space-y-1">
+            <div class="text-base font-extrabold text-amber-500">Langkah 2</div>
+            <div class="font-bold text-xs">Cahaya Sesuai Protokol</div>
+            <p class="text-xs text-slate-500">Gunakan di bawah cahaya pagi atau lampu uji sesuai petunjuk penelitian.</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 space-y-1">
+            <div class="text-base font-extrabold text-teal-600">Langkah 3</div>
+            <div class="font-bold text-xs">Pantau Lingkaran Suhu</div>
+            <p class="text-xs text-slate-500">Pastikan lingkaran suhu tetap berwarna hijau (38–41°C).</p>
+          </div>
+        </div>
+
+        <div id="help-tab-troubleshoot" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong>1. ESP32 Tidak Ditemukan:</strong> Pastikan alat menyala dan Bluetooth HP/Laptop aktif.</div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong>2. Browser Tidak Mendukung:</strong> Gunakan Google Chrome atau Microsoft Edge.</div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong>3. Angka Tidak Bergerak:</strong> Cek apakah tombol sesi sedang "Dijeda".</div>
+          <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong>4. Pakai Tanpa Alat:</strong> Gunakan tombol skenario cuaca di Beranda.</div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/80 flex justify-between items-center">
+        <button onclick="App.closeHelpModal(); App.Walkthrough.start();" class="px-4 py-2 rounded-2xl bg-emerald-600 text-white text-xs font-bold">
+          Mulai Tur Singkat
+        </button>
+        <button onclick="App.closeHelpModal()" class="px-5 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 text-xs font-bold">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CONFIRMATION DIALOG -->
+  <div id="confirm-modal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <h3 id="confirm-modal-title" class="text-base font-extrabold text-slate-900 dark:text-white">Konfirmasi</h3>
+      <p id="confirm-modal-message" class="text-xs sm:text-sm text-slate-500">Apakah Anda yakin?</p>
+      <div class="flex justify-end gap-2">
+        <button onclick="App.Modals.closeConfirm()" class="px-4 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Batal</button>
+        <button id="confirm-modal-ok-btn" class="px-4 py-2 rounded-2xl bg-red-600 text-white text-xs font-bold">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: PROFIL PASIEN -->
+  <div id="role-modal" role="dialog" aria-modal="true" aria-labelledby="role-modal-title" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-md w-full shadow-2xl overflow-hidden my-8">
+      <div class="px-5 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i data-lucide="user-check" class="w-6 h-6"></i>
+          <div>
+            <h2 id="role-modal-title" class="text-base font-extrabold">Profil Pasien</h2>
+            <p class="text-[11px] text-emerald-100">Pilih atau ubah nama profil terapi Anda</p>
+          </div>
+        </div>
+        <button onclick="App.closeRoleModal()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-xs">
+        <form onsubmit="App.Users.handleQuickRenamePatient(event)" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+          <label for="quick-patient-name-input" class="block font-bold text-slate-700 dark:text-slate-200">Ubah Nama Pasien Aktif:</label>
+          <div class="flex gap-2">
+            <input id="quick-patient-name-input" type="text" required placeholder="Nama Pasien" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold" />
+            <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shrink-0">
+              Simpan
+            </button>
+          </div>
+        </form>
+
+        <div class="space-y-2">
+          <div class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Daftar Profil Tersimpan:</div>
+          <div id="modal-account-list" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 bg-slate-50 dark:bg-slate-800/80 flex justify-end items-center text-xs">
+        <button onclick="App.closeRoleModal()" class="px-5 py-2 rounded-2xl bg-slate-200 dark:bg-slate-700 font-bold">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: STEALTH ADMIN AUTHENTICATION -->
+  <div id="stealth-admin-modal" role="dialog" aria-modal="true" aria-labelledby="stealth-admin-title" class="hidden fixed inset-0 z-[80] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 text-white rounded-3xl border border-indigo-500/40 max-w-sm w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-indigo-600 flex items-center justify-center text-white">
+            <i data-lucide="key-round" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="stealth-admin-title" class="text-sm font-extrabold">Akses Internal Pengembang</h3>
+            <p class="text-[11px] text-slate-400">Otorisasi Mode Admin &amp; Laboratorium</p>
+          </div>
+        </div>
+        <button onclick="App.StealthAdmin.closeModal()" class="p-1.5 rounded-full text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form onsubmit="App.StealthAdmin.verifyPassword(event)" class="space-y-3 text-xs">
+        <div>
+          <label for="stealth-admin-password" class="block font-bold text-slate-300 mb-1.5">Masukkan Password Admin:</label>
+          <input id="stealth-admin-password" type="password" required autocomplete="off" placeholder="••••••••••" class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-950 border border-slate-700 text-white font-mono tracking-widest focus:border-indigo-500 focus:outline-none" />
+          <p id="stealth-admin-error" class="hidden text-rose-400 text-[11px] font-bold mt-1.5">Password salah. Akses ditolak.</p>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="App.StealthAdmin.closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold">Batal</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold">Buka Konsol Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- WALKTHROUGH FLOATING CARD -->
+  <div id="walkthrough-card" role="dialog" class="hidden fixed bottom-20 md:bottom-6 right-4 left-4 sm:left-auto sm:w-80 z-[70] bg-slate-900 text-white rounded-3xl border-2 border-emerald-500 p-5 shadow-2xl space-y-2.5">
+    <div class="flex items-center justify-between text-xs">
+      <span id="walkthrough-step-counter" class="font-mono font-bold text-emerald-400">Langkah 1 / 4</span>
+      <button onclick="App.Walkthrough.stop()" class="text-slate-400 hover:text-white">Tutup</button>
+    </div>
+    <h4 id="walkthrough-title" class="font-extrabold text-sm text-white">Judul</h4>
+    <p id="walkthrough-body" class="text-xs text-slate-300 leading-relaxed">Deskripsi.</p>
+    <div class="flex justify-between pt-2">
+      <button id="walkthrough-prev-btn" onclick="App.Walkthrough.prev()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-xs font-bold">Kembali</button>
+      <button id="walkthrough-next-btn" onclick="App.Walkthrough.next()" class="px-4 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-extrabold">Lanjut</button>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" aria-live="polite" class="fixed bottom-20 md:bottom-6 right-4 left-4 sm:left-auto z-50 flex flex-col gap-2 sm:max-w-xs pointer-events-none"></div>
+
+  <!-- MODULAR JAVASCRIPT FILES -->
+  <script src="js/config.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/ble-sim.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

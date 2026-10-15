@@ -1,0 +1,15 @@
+{
+  "users": [
+    {
+      "user_id": "usr_demo_01",
+      "display_name": "Nama Pasien",
+      "created_at": "2026-10-12T07:00:00.000Z",
+      "preferences": {
+        "role": "Pasien",
+        "access_level": "PATIENT",
+        "focus_joint": "Lutut Kanan",
+        "target_mins": 15
+      }
+    }
+  ]
+}

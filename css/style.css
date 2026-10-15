@@ -1,0 +1,123 @@
+:root {
+  --bg-app: #f2f4f8;
+  --bg-card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+}
+
+html.dark {
+  --bg-app: #090d16;
+  --bg-card: #131b2e;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Rasio Kontainer: Pas di HP tanpa kelebaran & Proporsional di Laptop */
+.app-shell {
+  width: 100%;
+  max-width: 480px;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    max-width: 960px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    max-width: 1120px;
+  }
+}
+
+/* Soft Smartwatch App Card Shadow */
+.health-card {
+  background-color: var(--bg-card);
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.25s ease;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .health-card {
+    border-radius: 1.75rem;
+  }
+}
+
+html.dark .health-card {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* Responsive Circular Smartwatch Gauge Ratio */
+.gauge-ring-wrapper {
+  width: clamp(190px, 56vw, 248px);
+  height: clamp(190px, 56vw, 248px);
+}
+
+/* Minimum 40x40px touch targets for mobile usability */
+.touch-target {
+  min-height: 40px;
+}
+
+/* Smartwatch SVG Ring Transition */
+.ring-progress {
+  transition: stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+/* Pulse Dot */
+@keyframes soft-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.45; }
+}
+
+.pulse-dot {
+  animation: soft-pulse 2s infinite ease-in-out;
+}
+
+/* Walkthrough Spotlight */
+.walkthrough-highlight {
+  position: relative;
+  z-index: 60 !important;
+  box-shadow: 0 0 0 4px #10b981, 0 0 0 5000px rgba(9, 13, 22, 0.72) !important;
+  border-radius: 1.5rem;
+}
+
+/* Role Visibility Rules */
+body[data-role="PATIENT"] .admin-only {
+  display: none !important;
+}
+
+body[data-role="ADMIN"] .patient-only {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
